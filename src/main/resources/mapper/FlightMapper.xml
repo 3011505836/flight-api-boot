@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 为这个mapper指定一个唯一的namespace，namespace的值习惯上设置成包名+sql映射文件名，这样就能够保证namespace的值是唯一的
+	例如namespace="com.szh.mapper.personMapper"就是com.szh.mapper(包名)+personMapper(personMapper.xml文件去除后缀) -->
+<mapper namespace="com.fh.mapper.FlightMapper">
+
+    <sql id="tableName">
+        flight_api_boot
+    </sql>
+
+    <!--<sql id="whereSql">
+        <where>
+            <if test="name != null and name != ''">
+                and te1.name like concat('%',#{name},'%')
+            </if>
+            <if test="entryYear != null and entryYear != -1">
+                <if test="entryYear == 1">
+                    <![CDATA[
+                      and TIMESTAMPDIFF(YEAR,te1.entryTime,sysdate()) < 1
+                    ]]>
+                </if>
+                <if test="entryYear == 2">
+                    <![CDATA[
+                      and TIMESTAMPDIFF(YEAR,te1.entryTime,sysdate()) >= 3
+                    ]]>
+                </if>
+                <if test="entryYear == 3">
+                    <![CDATA[
+                      and TIMESTAMPDIFF(YEAR,te1.entryTime,sysdate()) >= 5
+                    ]]>
+                </if>
+                <if test="entryYear == 4">
+                    <![CDATA[
+                      and TIMESTAMPDIFF(YEAR,te1.entryTime,sysdate()) >= 10
+                    ]]>
+                </if>
+            </if>
+            <if test="isLeader != null">
+                <if test="isLeader == 1">
+                    and te3.isLeader = 1
+                </if>
+                <if test="isLeader == 2">
+                    and te3.isLeader = 0
+                </if>
+            </if>
+            <if test="jobId != null and jobId != -1">
+                and te1.jobId = #{jobId}
+            </if>
+            <if test="deptId != null and deptId != -1">
+                and te1.deptId = #{deptId}
+            </if>
+        </where>
+    </sql>-->
+
+    <select id="queryFlightCount" parameterType="FlightQuery" resultType="long">
+        select count(*) from <include refid="tableName"/>
+    </select>
+
+    <select id="queryFlightList" resultType="Flight" parameterType="FlightQuery">
+        select td.*,sum(fti.totalCount) as ticketCount,min(fti.price) as ticketPrice,
+        concat(td.name,fty.name,'(',
+        (case when fty.type=1 then '小型'
+              when fty.type=2 then '中型'
+              else '大型' end),')'
+				) as flightName,
+		concat(td.startTime,far1.name
+                ) as flightStartName,
+		concat(td.endTime,far2.name
+                ) as flightEndName
+        from flight_api_boot td
+        left join flight_area far1 on td.startTerminalId = far1.id
+		left join flight_area far2 on td.endTerminalId = far2.id
+        left join flight_ticket fti on td.id = fti.flightId
+        left join flight_type fty on td.typeId = fty.id
+		group by fti.flightId
+        limit #{start},#{length}
+    </select>
+
+
+    <insert id="addFlight" parameterType="Flight" useGeneratedKeys="true" keyProperty="id">
+        insert into <include refid="tableName"/> (
+        name,typeId,startTime,endTime,
+        startTerminalId,endTerminalId
+        )
+        values (
+        #{name},#{typeId},#{startTime},#{endTime},
+        #{startTerminalId},#{endTerminalId}
+        )
+    </insert>
+
+
+    <insert id="batchAddFlightTicket" parameterType="java.util.List">
+        insert into flight_ticket (flightId,type,totalCount,price) values
+        <foreach collection="list" item="abc" separator=",">
+            (#{abc.flightId},#{abc.type},#{abc.totalCount},#{abc.price})
+        </foreach>
+    </insert>
+
+
+    <select id="getFlightById" parameterType="int" resultType="Flight">
+        select td.*,sum(fti.totalCount) as ticketCount,min(fti.price) as ticketPrice,
+        concat(td.name,fty.name,'(',
+        (case when fty.type=1 then '小型'
+              when fty.type=2 then '中型'
+              else '大型' end),')'
+				) as flightName,
+		concat(td.startTime,far1.name
+                ) as flightStartName,
+		concat(td.endTime,far2.name
+                ) as flightEndName
+        from flight_api_boot td
+        left join flight_area far1 on td.startTerminalId = far1.id
+		left join flight_area far2 on td.endTerminalId = far2.id
+        left join flight_ticket fti on td.id = fti.flightId
+        left join flight_type fty on td.typeId = fty.id
+        where td.id = #{id}
+    </select>
+
+    <select id="queryTypeList" resultType="Type">
+        select * from flight_type
+    </select>
+
+    <select id="queryAreaByPid" parameterType="int" resultType="Area">
+        select * from flight_area where pid = #{pid}
+    </select>
+
+    <select id="queryTicketByFlightId" parameterType="int" resultType="FlightTicket">
+        select * from flight_ticket where flightId = #{flightId}
+    </select>
+
+</mapper>
